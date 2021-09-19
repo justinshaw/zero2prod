@@ -2,11 +2,13 @@ image: "rust:latest"
 
 default:
   before_script:
-    - rustc --version 
+    - rustc --version
     - cargo --version
+    - cargo install --version=0.5.7 sqlx-cli --no-default-features --features postgres
 
 stages:
   - test
+  - build
 
 test-code:
   stage: test
@@ -20,7 +22,7 @@ lint-code:
   script:
     - rustup component add clippy
     - cargo clippy -- -D warnings
-    
+
 format-code:
   stage: test
   script:
@@ -32,3 +34,12 @@ audit-code:
   script:
     - cargo install cargo-audit
     - cargo audit
+
+services:
+  - postgres:latest-alpine
+
+variables:
+  POSTGRES_DB: $POSTGRES_DB
+  POSTGRES_USER: $POSTGRES_USER
+  POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+  POSTGRES_HOST_AUTH_METHOD: trust
