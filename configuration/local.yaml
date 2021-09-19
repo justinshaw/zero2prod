@@ -4,3 +4,4 @@ application:
 database:
   username: "justin"
   password: ""
+  require_ssl: false
