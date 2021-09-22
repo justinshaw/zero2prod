@@ -2,6 +2,7 @@ use once_cell::sync::Lazy;
 use std::net::TcpListener;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use zero2prod::startup::run;
+use zero2prod::email_client::EmailClient;
 use zero2prod::configuration::{get_configuration, DatabaseSettings};
 use zero2prod::telemetry::{get_subscriber, init_subscriber};
 use uuid::Uuid;
@@ -64,6 +65,34 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
 }
 
 #[actix_rt::test]
+async fn subscribe_returns_a_200_when_fields_are_present_but_empty() {
+    let app = spawn_app().await;
+    let client = reqwest::Client::new();
+    let test_cases = vec![
+        ("name=&email=usula_le_guin%40gmail.com", "empty_name"),
+        ("name-Ursula&email=", "empty email"),
+        ("name=Ursula&email=definitely-not-an-email", "invalid email"),
+    ];
+
+    for (body, description) in test_cases {
+        let response = client
+            .post(&format!("{}/subscriptions", &app.address))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body)
+            .send()
+            .await
+            .expect("Failed to execute request.");
+
+        assert_eq!(
+            200,
+            response.status().as_u16(),
+            "The API did not return a 200 OK when the payload was {}.",
+            description
+        );
+    }
+}
+
+#[actix_rt::test]
 async fn subscribe_returns_a_400_when_data_is_missing() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
@@ -100,9 +129,16 @@ async fn spawn_app() -> TestApp {
 
     let mut configuration = get_configuration().expect("Failed to read configuration.");
     configuration.database.database_name = Uuid::new_v4().to_string();
-
     let connection_pool = configure_database(&configuration.database).await;
-    let server = run(listener, connection_pool.clone()).expect("Failed to bind address");
+
+    let sender_email = configuration.email_client.sender()
+        .expect("Invalid sender email address");
+    let email_client = EmailClient::new(
+        configuration.email_client.base_url,
+        sender_email
+    );
+
+    let server = run(listener, connection_pool.clone(), email_client).expect("Failed to bind address");
     let _ = tokio::spawn(server);
 
     TestApp {

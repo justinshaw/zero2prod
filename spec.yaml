@@ -3,40 +3,32 @@ name: zero2prod
 region: nyc
 services:
   - name: zero2prod
-    # Relative to the repository root
     dockerfile_path: Dockerfile
     source_dir: .
     github:
       branch: main
       repo: justinshaw/zero2prod
-    # Active probe used by DigitalOcean's to ensure our application is healthy
     health_check:
-      # The path to our health check endpoint!
-      # It turned out to be useful in the end!
       http_path: /health_check
-    # The port the application will be listening on for incoming requests
     http_port: 8000
-    # For production workloads we'd go for at least two!
-    # But let's try to keep the bill under control for now...
     instance_count: 1
     instance_size_slug: basic-xxs
-    # All incoming requests should be routed to our app
     routes:
       - path: /
     envs:
-      - key: APP_DATABASE__USERNAME
+      - key: APP__DATABASE_USERNAME
         scope: RUN_TIME
         value: ${newsletter.USERNAME}
-      - key: APP_DATABASE__PASSWORD
+      - key: APP__DATABASE_PASSWORD
         scope: RUN_TIME
         value: ${newsletter.PASSWORD}
-      - key: APP_DATABASE__HOST
+      - key: APP__DATABASE_HOST
         scope: RUN_TIME
         value: ${newsletter.HOSTNAME}
-      - key: APP_DATABASE__PORT
+      - key: APP__DATABASE_PORT
         scope: RUN_TIME
         value: ${newsletter.PORT}
-      - key: APP_DATABASE__DATABASE_NAME
+      - key: APP__DATABASE_NAME
         scope: RUN_TIME
         value: ${newsletter.DATABASE}
 databases:
